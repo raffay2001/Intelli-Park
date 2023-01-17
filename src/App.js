@@ -1,4 +1,4 @@
-import { Grid, AStarFinder } from "pathfinding"
+import { Grid, AStarFinder, BestFirstFinder, IDAStarFinder, BreadthFirstFinder } from "pathfinding"
 import { useState } from "react"
 import InputLabel from "@mui/material/InputLabel"
 import MenuItem from "@mui/material/MenuItem"
@@ -50,19 +50,40 @@ function App() {
   const [size, setSize] = useState(8)
   const [level, setLevel] = useState(1)
   const [isDiagonalMovementAllowed, setIsDiagonalMovementAllowed] = useState(false)
+  // Objects for searching algorithms.
+  const [algo, setAlgo] = useState("A-star")
+
+  // handler for deciding algorithm based on state
+  const evalFinder = (algoName) => {
+    let finder
+    if (algoName === "A-star") {
+      finder = new AStarFinder({ allowDiagonal: isDiagonalMovementAllowed })
+    } else if (algoName === "Best First") {
+      finder = new BestFirstFinder({ allowDiagonal: isDiagonalMovementAllowed })
+    } else if (algoName === "IDS") {
+      finder = new IDAStarFinder({ allowDiagonal: isDiagonalMovementAllowed })
+    } else if (algoName === "BFS") {
+      finder = new BreadthFirstFinder({ allowDiagonal: isDiagonalMovementAllowed })
+    }
+    return finder
+  }
 
   // Path Finding Function
   const findPath = () => {
     let grid = new Grid(size, size)
+    const finder = evalFinder(algo)
     for (let item of obstacles) {
       grid.setWalkableAt(item[0], item[1], false)
     }
-    let finder = new AStarFinder({ allowDiagonal: isDiagonalMovementAllowed })
 
     // Finding path for level 1 and level
     if (level === 1 || level === 3) {
       if (vehicleOneNodes.length === 0) {
-        notifyError("Could not find path.")
+        notifyError("Please select starting and ending positions.")
+        return
+      }
+      if (vehicleOneNodes.length === 1) {
+        notifyError("Please select the ending position.")
         return
       }
       const [vehicle1StartNode, vehicle1GoalNode] = vehicleOneNodes
@@ -81,7 +102,6 @@ function App() {
         return
       }
       setVehicleOnePath(vehicleOneFinalPath)
-      return
     }
 
     // Finding paths for other vehicles for level 2
@@ -105,7 +125,6 @@ function App() {
         vehicle1GoalNode[1],
         grid
       )
-      setVehicleOnePath(vehicleOneFinalPath)
 
       // For Vehicle 2
       const [vehicle2StartNode, vehicle2GoalNode] = vehicleTwoNodes
@@ -116,7 +135,6 @@ function App() {
         vehicle2GoalNode[1],
         grid
       )
-      setVehicleTwoPath(vehicleTwoFinalPath)
 
       // For Vehicle 3
       const [vehicle3StartNode, vehicle3GoalNode] = vehicleThreeNodes
@@ -127,11 +145,26 @@ function App() {
         vehicle3GoalNode[1],
         grid
       )
-      setVehicleThreePath(vehicleThreeFinalPath)
-      if (vehicleTwoFinalPath.length === 2 || vehicleThreeFinalPath.length === 2) {
+
+      if (
+        vehicleOneFinalPath.length === 2 ||
+        vehicleTwoFinalPath.length === 2 ||
+        vehicleThreeFinalPath.length === 2
+      ) {
         notifyError("Start and end positions should be adjacent atleast by one cell.")
         return
       }
+      if (
+        vehicleOneFinalPath.length === 0 ||
+        vehicleTwoFinalPath.length === 0 ||
+        vehicleThreeFinalPath.length === 0
+      ) {
+        notifyError("Intersecting path not allowed.")
+        return
+      }
+      setVehicleOnePath(vehicleOneFinalPath)
+      setVehicleTwoPath(vehicleTwoFinalPath)
+      setVehicleThreePath(vehicleThreeFinalPath)
     }
 
     notify("Path Found 🚀")
@@ -178,6 +211,30 @@ function App() {
       setObstacles((prevObstacles) => [...prevObstacles, [rows, cols]])
   }
 
+  // Handlers for reseting states
+  const resetVehicleOneStates = () => {
+    setVehicleOneNodes([])
+    setVehicleOneStartNode([])
+    setVehicleOneGoalNode([])
+    setObstacles([])
+    setVehicleOnePath([])
+  }
+
+  const resetVehicleTwoStates = () => {
+    setVehicleTwoNodes([])
+    setVehicleTwoStartNode([])
+    setVehicleTwoGoalNode([])
+    setVehicleTwoPath([])
+    setVehicle(1)
+  }
+
+  const resetVehicleThreeStates = () => {
+    setVehicleThreeNodes([])
+    setVehicleThreeStartNode([])
+    setVehicleThreeGoalNode([])
+    setVehicleThreePath([])
+  }
+
   return (
     <div className="flex flex-col h-screen items-center text-zinc-900">
       <Toaster
@@ -213,50 +270,49 @@ function App() {
         >
           See Path
         </button>
-        <FormControl className="w-64">
-          <InputLabel id="size-label">Size</InputLabel>
-          <Select
-            labelId="size-label"
-            id="size-select"
-            value={size}
-            label="size"
-            onChange={(e) => setSize(e.target.value)}
-          >
-            <MenuItem value={8}>Eight</MenuItem>
-            <MenuItem value={10}>Ten</MenuItem>
-            <MenuItem value={20}>Twenty</MenuItem>
-            <MenuItem value={30}>Thirty</MenuItem>
-          </Select>
-        </FormControl>
-        <FormControl className="w-64">
-          <InputLabel id="level-label">Level</InputLabel>
-          <Select
-            labelId="level-label"
-            id="level-select"
-            value={level}
-            label="level"
-            onChange={(e) => setLevel(e.target.value)}
-          >
-            <MenuItem value={1}>One</MenuItem>
-            <MenuItem value={2}>Two</MenuItem>
-            <MenuItem value={3}>Three</MenuItem>
-          </Select>
-        </FormControl>
-        {!!(level === 2) && (
-          <FormControl className="w-64">
-            <InputLabel id="vehicle-label">Vehicle</InputLabel>
-            <Select
-              labelId="vehicle-label"
-              id="vehicle-select"
-              value={vehicle}
-              label="vehicle"
-              onChange={(e) => setVehicle(e.target.value)}
+        {!!(level === 3 || level === 1) && (
+          <div>
+            <button
+              className="cursor-pointer border-none w-32 h-10 rounded-md bg-zinc-800 text-white"
+              onClick={() => {
+                resetVehicleOneStates()
+                notify("State resetted")
+              }}
             >
-              <MenuItem value={1}>One</MenuItem>
-              <MenuItem value={2}>Two</MenuItem>
-              <MenuItem value={3}>Three</MenuItem>
-            </Select>
-          </FormControl>
+              Reset State
+            </button>
+          </div>
+        )}
+        {!!(level === 2) && (
+          <div className="flex space-x-2">
+            <button
+              className="cursor-pointer border-none w-24 h-10 rounded-md bg-zinc-800 text-white"
+              onClick={() => {
+                notify("State resetted")
+                resetVehicleOneStates()
+              }}
+            >
+              Reset State Vehicle 1
+            </button>
+            <button
+              className="cursor-pointer border-none w-24 h-10 rounded-md bg-zinc-800 text-white"
+              onClick={() => {
+                resetVehicleTwoStates()
+                notify("State resetted")
+              }}
+            >
+              Reset State Vehicle 2
+            </button>
+            <button
+              className="cursor-pointer border-none w-24 h-10 rounded-md bg-zinc-800 text-white"
+              onClick={() => {
+                resetVehicleThreeStates()
+                notify("State resetted")
+              }}
+            >
+              Reset State Vehicle 3
+            </button>
+          </div>
         )}
         {!!(level === 3) && (
           <div>
@@ -286,6 +342,73 @@ function App() {
             </button>
           </div>
         )}
+        <FormControl className="w-64">
+          <InputLabel id="size-label">Size</InputLabel>
+          <Select
+            labelId="size-label"
+            id="size-select"
+            value={size}
+            label="size"
+            onChange={(e) => setSize(e.target.value)}
+          >
+            <MenuItem value={8}>Eight</MenuItem>
+            <MenuItem value={10}>Ten</MenuItem>
+            <MenuItem value={20}>Twenty</MenuItem>
+            <MenuItem value={30}>Thirty</MenuItem>
+          </Select>
+        </FormControl>
+        {!!(level === 2) && (
+          <FormControl className="w-64">
+            <InputLabel id="vehicle-label">Vehicle</InputLabel>
+            <Select
+              labelId="vehicle-label"
+              id="vehicle-select"
+              value={vehicle}
+              label="vehicle"
+              onChange={(e) => setVehicle(e.target.value)}
+            >
+              <MenuItem value={1}>One</MenuItem>
+              <MenuItem value={2}>Two</MenuItem>
+              <MenuItem value={3}>Three</MenuItem>
+            </Select>
+          </FormControl>
+        )}
+        <FormControl className="w-64">
+          <InputLabel id="level-label">Level</InputLabel>
+          <Select
+            labelId="level-label"
+            id="level-select"
+            value={level}
+            label="level"
+            onChange={(e) => {
+              resetVehicleOneStates()
+              resetVehicleTwoStates()
+              resetVehicleThreeStates()
+              setLevel(e.target.value)
+            }}
+          >
+            <MenuItem value={1}>One</MenuItem>
+            <MenuItem value={2}>Two</MenuItem>
+            <MenuItem value={3}>Three</MenuItem>
+          </Select>
+        </FormControl>
+        <FormControl className="w-64">
+          <InputLabel id="algo-label">Algo.</InputLabel>
+          <Select
+            labelId="algo-label"
+            id="algo-select"
+            value={algo}
+            label="algo"
+            onChange={(e) => {
+              setAlgo(e.target.value)
+            }}
+          >
+            <MenuItem value="A-star">A Star</MenuItem>
+            <MenuItem value="Best First">Best First</MenuItem>
+            <MenuItem value="IDS">IDS</MenuItem>
+            <MenuItem value="BFS">Breadth First</MenuItem>
+          </Select>
+        </FormControl>
       </div>
       <div className="my-2 pb-5 flex">
         <div>
