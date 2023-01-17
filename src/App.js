@@ -1,11 +1,13 @@
 import { Grid, AStarFinder } from "pathfinding"
 import { useState } from "react"
-import * as React from "react"
 import InputLabel from "@mui/material/InputLabel"
 import MenuItem from "@mui/material/MenuItem"
 import FormControl from "@mui/material/FormControl"
 import Select from "@mui/material/Select"
+import ElectricCarIcon from "@mui/icons-material/ElectricCar"
+import toast, { Toaster } from "react-hot-toast"
 
+// Helper function to check if the element exists in the array or not
 const isArrayItemExists = (arr, item) => {
   for (let i = 0; i < arr.length; i++) {
     if (JSON.stringify(arr[i]) === JSON.stringify(item)) {
@@ -14,9 +16,15 @@ const isArrayItemExists = (arr, item) => {
   }
 }
 
+// Toast message notifiers
+const notify = (message) => toast.success(message)
+const notifyError = (message) => toast.error(message)
+
+// Main Component
 function App() {
   // reactive varible for storing nodes.
-  const [vehicle, setVehicle] = React.useState(1)
+  // No. of Vehicles
+  const [vehicle, setVehicle] = useState(1)
   // Vehicle related states.
   // For Vehicle One
   const [vehicleOneNodes, setVehicleOneNodes] = useState([])
@@ -39,46 +47,95 @@ function App() {
   const [obstacles, setObstacles] = useState([])
 
   // General game related states
-  const [size, setSize] = React.useState(8)
-  const [level, setLevel] = React.useState(1)
+  const [size, setSize] = useState(8)
+  const [level, setLevel] = useState(1)
+  const [isDiagonalMovementAllowed, setIsDiagonalMovementAllowed] = useState(false)
 
+  // Path Finding Function
   const findPath = () => {
     let grid = new Grid(size, size)
     for (let item of obstacles) {
       grid.setWalkableAt(item[0], item[1], false)
     }
-    let finder = new AStarFinder()
-    const [vehicle1StartNode, vehicle1GoalNode] = vehicleOneNodes
-    let vehicleOneFinalPath = finder.findPath(
-      vehicle1StartNode[0],
-      vehicle1StartNode[1],
-      vehicle1GoalNode[0],
-      vehicle1GoalNode[1],
-      grid
-    )
-    setVehicleOnePath(vehicleOneFinalPath)
+    let finder = new AStarFinder({ allowDiagonal: isDiagonalMovementAllowed })
 
-    const [vehicle2StartNode, vehicle2GoalNode] = vehicleTwoNodes
-    let vehicleTwoFinalPath = finder.findPath(
-      vehicle2StartNode[0],
-      vehicle2StartNode[1],
-      vehicle2GoalNode[0],
-      vehicle2GoalNode[1],
-      grid
-    )
-    setVehicleTwoPath(vehicleTwoFinalPath)
+    // Finding path for level 1 and level
+    if (level === 1 || level === 3) {
+      if (vehicleOneNodes.length === 0) {
+        notifyError("Could not find path.")
+        return
+      }
+      const [vehicle1StartNode, vehicle1GoalNode] = vehicleOneNodes
+      let vehicleOneFinalPath = finder.findPath(
+        vehicle1StartNode[0],
+        vehicle1StartNode[1],
+        vehicle1GoalNode[0],
+        vehicle1GoalNode[1],
+        grid
+      )
+      if (vehicleOneFinalPath.length === 2) {
+        notifyError("Start and end positions should be adjacent atleast by one cell.")
+        setVehicleOneNodes([])
+        setVehicleOneStartNode([])
+        setVehicleOneGoalNode([])
+        return
+      }
+      setVehicleOnePath(vehicleOneFinalPath)
+      return
+    }
 
-    const [vehicle3StartNode, vehicle3GoalNode] = vehicleThreeNodes
-    let vehicleThreeFinalPath = finder.findPath(
-      vehicle3StartNode[0],
-      vehicle3StartNode[1],
-      vehicle3GoalNode[0],
-      vehicle3GoalNode[1],
-      grid
-    )
-    setVehicleThreePath(vehicleThreeFinalPath)
+    // Finding paths for other vehicles for level 2
+    if (level === 2) {
+      // Exception check
+      if (
+        vehicleOneNodes.length === 0 ||
+        vehicleTwoNodes.length === 0 ||
+        vehicleThreeNodes.length === 0
+      ) {
+        notifyError("Please give starting and ending positions of all the vehicles.")
+        return
+      }
 
-    alert(`The path is: ${JSON.stringify(vehicleOneFinalPath)}`)
+      // For Vehicle 1
+      const [vehicle1StartNode, vehicle1GoalNode] = vehicleOneNodes
+      let vehicleOneFinalPath = finder.findPath(
+        vehicle1StartNode[0],
+        vehicle1StartNode[1],
+        vehicle1GoalNode[0],
+        vehicle1GoalNode[1],
+        grid
+      )
+      setVehicleOnePath(vehicleOneFinalPath)
+
+      // For Vehicle 2
+      const [vehicle2StartNode, vehicle2GoalNode] = vehicleTwoNodes
+      let vehicleTwoFinalPath = finder.findPath(
+        vehicle2StartNode[0],
+        vehicle2StartNode[1],
+        vehicle2GoalNode[0],
+        vehicle2GoalNode[1],
+        grid
+      )
+      setVehicleTwoPath(vehicleTwoFinalPath)
+
+      // For Vehicle 3
+      const [vehicle3StartNode, vehicle3GoalNode] = vehicleThreeNodes
+      let vehicleThreeFinalPath = finder.findPath(
+        vehicle3StartNode[0],
+        vehicle3StartNode[1],
+        vehicle3GoalNode[0],
+        vehicle3GoalNode[1],
+        grid
+      )
+      setVehicleThreePath(vehicleThreeFinalPath)
+      if (vehicleTwoFinalPath.length === 2 || vehicleThreeFinalPath.length === 2) {
+        notifyError("Start and end positions should be adjacent atleast by one cell.")
+        return
+      }
+    }
+
+    notify("Path Found 🚀")
+    return
   }
 
   // Handlers for setting start and goal nodes for vehicles
@@ -123,11 +180,36 @@ function App() {
 
   return (
     <div className="flex flex-col h-screen items-center text-zinc-900">
-      <h1 className="font-extrabold m-0 p-0 pt-5 text-5xl">Intelli Park</h1>
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          // Define default options
+          className: "",
+          duration: 3000,
+          style: {
+            background: "#363636",
+            color: "#fff",
+          },
+
+          // Default options for specific types
+          success: {
+            duration: 2000,
+            theme: {
+              primary: "green",
+              secondary: "black",
+            },
+          },
+        }}
+      />
+      <h1 className="font-extrabold m-0 p-0 pt-5 text-5xl">
+        Intelli Park <ElectricCarIcon className="text-5xl" />
+      </h1>
       <div className="max-w-7xl my-8 w-full flex justify-evenly items-center space-x-3">
         <button
           className="cursor-pointer border-none w-32 h-10 rounded-md bg-zinc-800 text-white"
-          onClick={findPath}
+          onClick={() => {
+            findPath()
+          }}
         >
           See Path
         </button>
@@ -177,12 +259,32 @@ function App() {
           </FormControl>
         )}
         {!!(level === 3) && (
-          <button
-            className="cursor-pointer border-none w-32 h-10 rounded-md bg-zinc-800 text-white"
-            onClick={() => setIsObstacleState((prevState) => !prevState)}
-          >
-            {isObstacleState ? "Back" : "Set Obstacles"}
-          </button>
+          <div>
+            <button
+              className="cursor-pointer border-none w-32 h-10 rounded-md bg-zinc-800 text-white"
+              onClick={() => {
+                if (isObstacleState) notify("Obstacles Feature Disabled")
+                else if (!isObstacleState) notify("Obstacles Feature Enabled")
+                setIsObstacleState((prevState) => !prevState)
+              }}
+            >
+              {isObstacleState ? "Disable Obstacles" : "Enable Obstacles"}
+            </button>
+          </div>
+        )}
+        {!!(level === 3) && (
+          <div>
+            <button
+              className="cursor-pointer border-none w-52 h-10 rounded-md bg-zinc-800 text-white"
+              onClick={() => {
+                if (isDiagonalMovementAllowed) notify("Diagonal Movement Disabled")
+                else if (!isDiagonalMovementAllowed) notify("Diagonal Movement Enabled")
+                setIsDiagonalMovementAllowed((prevState) => !prevState)
+              }}
+            >
+              {isDiagonalMovementAllowed ? "Disable Diagonal Movement" : "Enable Diagonal Movement"}
+            </button>
+          </div>
         )}
       </div>
       <div className="my-2 pb-5 flex">
@@ -191,12 +293,13 @@ function App() {
             .fill("0")
             .map((_, rows) => {
               return (
-                <div className="flex cursor-pointer">
+                <div className="flex cursor-pointer" key={`cell-${rows}`}>
                   {Array(size)
                     .fill("0")
                     .map((_, cols) => (
                       <div
-                        className={`w-20 h-20 border border-solid border-zinc-900
+                        key={`cell-${cols}`}
+                        className={`w-20 h-20 border border-solid border-zinc-900 flex justify-center items-center
                         ${
                           vehicleOneStartNode[0] === rows && vehicleOneStartNode[1] === cols
                             ? "bg-gray-600"
@@ -245,7 +348,7 @@ function App() {
                           }
                         }}
                       >
-                        ({`${rows},${cols}`})
+                        {/* ({`${rows},${cols}`})  */}
                         {!!vehicleOnePath.length && (
                           <img
                             src="/assets/car.jpg"
