@@ -1,4 +1,4 @@
-# DoctrEx
+# Intelli Park 🚗
 
 Intelli Park AI based game built with React.js which uses A star searching algorithm to help a car reach to its destination.
 

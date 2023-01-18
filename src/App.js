@@ -78,7 +78,10 @@ function App() {
 
     // Finding path for level 1 and level
     if (level === 1 || level === 3) {
-      if (vehicleOneNodes.length === 0) {
+      if (
+        (vehicleOneNodes.length === 0 && obstacles.length !== 0) ||
+        vehicleOneNodes.length === 0
+      ) {
         notifyError("Please select starting and ending positions.")
         return
       }
@@ -96,9 +99,11 @@ function App() {
       )
       if (vehicleOneFinalPath.length === 2) {
         notifyError("Start and end positions should be adjacent atleast by one cell.")
-        setVehicleOneNodes([])
-        setVehicleOneStartNode([])
-        setVehicleOneGoalNode([])
+        resetVehicleOneStates()
+        return
+      }
+      if (vehicleOneFinalPath.length === 0) {
+        notifyError("Could not find any path, try re-entering obstacles.")
         return
       }
       setVehicleOnePath(vehicleOneFinalPath)
@@ -325,6 +330,19 @@ function App() {
               }}
             >
               {isObstacleState ? "Disable Obstacles" : "Enable Obstacles"}
+            </button>
+          </div>
+        )}
+        {!!(level === 3) && (
+          <div>
+            <button
+              className="cursor-pointer border-none w-32 h-10 rounded-md bg-zinc-800 text-white"
+              onClick={() => {
+                setObstacles([])
+                notify("Obstacles resetted.")
+              }}
+            >
+              Reset Obstacles
             </button>
           </div>
         )}
